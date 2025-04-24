@@ -284,9 +284,8 @@ def create_colored_overlay(detection_map, binary_map):
 def main():
     # Create argument parser
     parser = argparse.ArgumentParser(description='Prune map by removing stubs and T-junctions')
-    parser.add_argument('--input', type=str, required=True, help='Path to input map image')
-    parser.add_argument('--output', type=str, required=True, help='Path to output pruned map image')
-    parser.add_argument('--overlay', type=str, help='Path to output detection overlay image')
+    parser.add_argument('input', help='Path to input map image')
+    parser.add_argument('output', help='Path to output pruned map image')
     parser.add_argument('--stub-length', type=int, default=20, help='Maximum stub length to remove')
     args = parser.parse_args()
     
@@ -296,7 +295,7 @@ def main():
     # Use the specified file paths
     input_path = args.input
     output_path = args.output
-    overlay_path = args.overlay if args.overlay else os.path.join(os.path.dirname(output_path), "detection_overlay.png")
+    overlay_path = os.path.join(os.path.dirname(output_path), "detection_overlay.png")
     max_stub_length = args.stub_length
     
     # Create directory if it doesn't exist

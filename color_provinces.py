@@ -1,6 +1,7 @@
 import cv2
 import numpy as np
 import os
+import argparse
 
 def color_provinces(input_path=None, output_path=None, image=None):
     """
@@ -65,17 +66,26 @@ def color_provinces(input_path=None, output_path=None, image=None):
     
     # Save as PNG if output_path is provided
     if output_path:
+        # Ensure output directory exists
+        os.makedirs(os.path.dirname(output_path), exist_ok=True)
         cv2.imwrite(output_path, output, [cv2.IMWRITE_PNG_COMPRESSION, 0])
         print(f"Map provinces colored: {output_path}")
         print(f"Found {num_labels-1} distinct provinces")
     
     return output, num_labels-1
 
-# When run as a standalone script
-if __name__ == "__main__":
-    input_path = "EmpireOfMoon/thinned_image.png"  # Path to the pruned image
-    output_path = "EmpireOfMoon/colored_provinces.png"  # Changed to PNG extension
+def main():
+    # Set up command line argument parser
+    parser = argparse.ArgumentParser(description='Color provinces in a map')
+    parser.add_argument('input', help='Path to the input map image with borders')
+    parser.add_argument('output', help='Path for saving the colored map (should end with .png)')
     
-    result, province_count = color_provinces(input_path=input_path, output_path=output_path)
+    args = parser.parse_args()
+    
+    # Process the map
+    result, province_count = color_provinces(input_path=args.input, output_path=args.output)
     if result is not None:
         print("Province coloring complete with strict binary coloring in lossless PNG format!")
+
+if __name__ == "__main__":
+    main()

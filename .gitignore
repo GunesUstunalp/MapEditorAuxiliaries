@@ -1,4 +1,5 @@
 .DS_Store
 .python-version
-.jpeg
-.png
+*.jpeg
+*.png
+*.txt

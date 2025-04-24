@@ -1,6 +1,7 @@
 import cv2
 import numpy as np
 import os
+import argparse
 
 def extract_map_boundaries(input_path, output_path, smoothing_level=1):
     """
@@ -56,6 +57,9 @@ def extract_map_boundaries(input_path, output_path, smoothing_level=1):
     # Create final image (black lines on white background)
     result = cv2.bitwise_not(final)
     
+    # Ensure output directory exists
+    os.makedirs(os.path.dirname(output_path), exist_ok=True)
+    
     # Save outputs
     cv2.imwrite(output_path, result)
     print(f"Map extraction complete: {output_path} (smoothing level: {smoothing_level})")
@@ -70,14 +74,20 @@ def extract_map_boundaries(input_path, output_path, smoothing_level=1):
     
     return output_path
 
-# Example usage with different smoothing levels
-input_path = "EmpireOfManDivided/original.jpeg"
-output_path = "EmpireOfManDivided/EmpireOfManDividedp-Boundaries.jpeg"
+def main():
+    # Set up command line argument parser
+    parser = argparse.ArgumentParser(description='Extract boundaries from a hand-drawn map')
+    parser.add_argument('input', help='Path to the input image')
+    parser.add_argument('output', help='Path for saving the extracted boundaries')
+    parser.add_argument('--smoothing', type=int, default=2, help='Smoothing level (1-5, default=2)')
+    
+    args = parser.parse_args()
+    
+    # Extract map boundaries
+    result = extract_map_boundaries(args.input, args.output, smoothing_level=args.smoothing)
+    if result:
+        print("Processing complete with overlay for verification.")
+        print("Tip: Adjust smoothing_level between 1-5 to find the best result.")
 
-# Use smoothing_level parameter to control smoothness (1-5)
-# Example: smoothing_level=1 (minimal smoothing)
-result = extract_map_boundaries(input_path, output_path, smoothing_level=2)
-
-if result:
-    print("Processing complete with overlay for verification.")
-    print("Tip: Adjust smoothing_level between 1-5 to find the best result.")
+if __name__ == "__main__":
+    main()

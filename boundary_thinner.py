@@ -73,7 +73,7 @@ def main():
     # Set up command line arguments
     parser = argparse.ArgumentParser(description='Thin boundaries in an image using skeletonization')
     parser.add_argument('input', help='Path to the input image')
-    parser.add_argument('-o', '--output', help='Path to save the output image')
+    parser.add_argument('output', help='Path to save the output image')
     parser.add_argument('-s', '--show', action='store_true', help='Display the result')
     
     args = parser.parse_args()
