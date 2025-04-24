@@ -324,8 +324,10 @@ def main():
         cv2.imwrite(overlay_path, overlay)
         print(f"Detection overlay saved as '{overlay_path}'")
     
-    # Save the pruned map
-    cv2.imwrite(output_path, pruned_map * 255)
+    # Save the pruned map - FIXED: Invert the binary image before saving
+    # This ensures white background (255) with black boundaries (0)
+    pruned_map_output = (1 - pruned_map) * 255
+    cv2.imwrite(output_path, pruned_map_output)
     print(f"Pruned map saved as '{output_path}'")
     
     # Count detections
