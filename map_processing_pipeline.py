@@ -7,6 +7,7 @@ This script orchestrates the execution of multiple map processing scripts in seq
 2. boundary_thinner.py - Thins the boundaries
 3. map_pruner.py - Prunes/cleans up the map
 4. color_provinces.py - Colors the provinces/regions
+5. province_json_converter.py - Converts color data to province data format
 
 Intermediate images are saved for debugging purposes.
 """
@@ -74,7 +75,9 @@ def main():
     stage1_output = os.path.join(output_dir, "temp_boundaries.png")
     stage2_output = os.path.join(output_dir, "temp_thinned.png")
     stage3_output = os.path.join(output_dir, "temp_pruned.png")
-    final_output = os.path.join(output_dir, "final_colored_map.png")
+    stage4_output = os.path.join(output_dir, "final_colored_map.png")
+    colors_json = os.path.join(output_dir, "final_colored_map_colors.json")
+    provinces_json = os.path.join(output_dir, "provinces.json")
     
     # Pipeline stages
     stages = [
@@ -102,8 +105,15 @@ def main():
         {
             "script": "color_provinces.py",
             "input": stage3_output,
-            "output": final_output,
+            "output": stage4_output,
             "debug_name": "04_colored",
+            "args": []
+        },
+        {
+            "script": "province_json_converter.py",
+            "input": colors_json,
+            "output": provinces_json,
+            "debug_name": "05_json_conversion",
             "args": []
         }
     ]
@@ -121,7 +131,18 @@ def main():
             print(f"Pipeline failed at {stage['script']}. Exiting.")
             sys.exit(1)
         
-        copy_debug_image(stage["output"], debug_dir, stage["debug_name"])
+        # Only copy image files to debug directory
+        if stage["debug_name"] != "05_json_conversion":
+            copy_debug_image(stage["output"], debug_dir, stage["debug_name"])
+        else:
+            # For JSON, copy the file directly
+            debug_file = os.path.join(debug_dir, f"{stage['debug_name']}.json")
+            shutil.copy2(stage["output"], debug_file)
+            print(f"  Debug JSON saved to {debug_file}")
+    
+    # Copy provinces.json to debug directory
+    debug_provinces_json = os.path.join(debug_dir, "provinces.json")
+    shutil.copy2(provinces_json, debug_provinces_json)
     
     # Clean up temporary files
     for temp_file in [stage1_output, stage2_output, stage3_output]:
@@ -129,7 +150,8 @@ def main():
             os.remove(temp_file)
     
     print("\nPipeline completed successfully!")
-    print(f"Final output saved to: {final_output}")
+    print(f"Final output saved to: {stage4_output}")
+    print(f"Province data saved to: {provinces_json}")
     print(f"Debug images saved to: {debug_dir}")
     
     # Display summary of the processing stages
@@ -138,7 +160,8 @@ def main():
             f.write("Map Processing Pipeline Summary\n")
             f.write("==============================\n")
             f.write(f"Original input: {input_file}\n")
-            f.write(f"Final output: {final_output}\n")
+            f.write(f"Final output: {stage4_output}\n")
+            f.write(f"Province data: {provinces_json}\n")
             f.write(f"Processing time: {datetime.datetime.now().strftime('%Y-%m-%d %H:%M:%S')}\n\n")
             
             f.write("Processing Stages:\n")
