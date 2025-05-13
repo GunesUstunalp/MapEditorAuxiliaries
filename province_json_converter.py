@@ -50,8 +50,8 @@ def convert_to_provinces_json(colors_json_path, centroids_json_path, output_path
             "owner": "DemoCountry",
             "center": {
                 "x": center_point[0],
-                "y": center_point[1],
-                "z": center_point[2]
+                "y": center_point[2],
+                "z": center_point[1]
             },
             "baseTax": 0,
             "baseProduction": 0,
