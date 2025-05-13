@@ -62,13 +62,19 @@ def convert_to_provinces_json(colors_json_path, centroids_json_path, output_path
         
         provinces.append(province)
     
+    # Format provinces for JSON output
+    provinces_formatted = {
+        "provinces": provinces
+    }
+
     # Save provinces to JSON
     print(f"Creating provinces JSON with {len(provinces)} provinces...")
     with open(output_path, 'w') as f:
-        json.dump(provinces, f, indent=4)
-    
+        json.dump(provinces_formatted, f, indent=4)
+
     print(f"Provinces JSON saved to {output_path}")
-    return provinces
+
+    return provinces_formatted
 
 def main():
     # Set up command line argument parser
