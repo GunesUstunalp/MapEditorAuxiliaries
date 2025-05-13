@@ -7,7 +7,8 @@ This script orchestrates the execution of multiple map processing scripts in seq
 2. boundary_thinner.py - Thins the boundaries
 3. map_pruner.py - Prunes/cleans up the map
 4. color_provinces.py - Colors the provinces/regions
-5. province_json_converter.py - Converts color data to province data format
+5. province_centroid_finder.py - Finds the center point of each province
+6. province_json_converter.py - Converts color data and centroid data to province data format
 
 Intermediate images are saved for debugging purposes.
 """
@@ -77,7 +78,9 @@ def main():
     stage3_output = os.path.join(output_dir, "temp_pruned.png")
     stage4_output = os.path.join(output_dir, "final_colored_map.png")
     colors_json = os.path.join(output_dir, "final_colored_map_colors.json")
+    centroids_json = os.path.join(output_dir, "province_centroids.json")
     provinces_json = os.path.join(output_dir, "provinces.json")
+    centroid_vis = os.path.join(output_dir, "province_centroids_visualization.png")
     
     # Pipeline stages
     stages = [
@@ -110,11 +113,18 @@ def main():
             "args": []
         },
         {
+            "script": "province_centroid_finder.py",
+            "input": stage4_output,
+            "output": centroids_json,
+            "debug_name": "05_centroids",
+            "args": ["--colors-json", colors_json, "--visualize", "--display-width", "8000", "--display-height", "4000"]
+        },
+        {
             "script": "province_json_converter.py",
             "input": colors_json,
             "output": provinces_json,
-            "debug_name": "05_json_conversion",
-            "args": []
+            "debug_name": "06_json_conversion",
+            "args": ["--centroids", centroids_json]
         }
     ]
     
@@ -131,14 +141,20 @@ def main():
             print(f"Pipeline failed at {stage['script']}. Exiting.")
             sys.exit(1)
         
-        # Only copy image files to debug directory
-        if stage["debug_name"] != "05_json_conversion":
-            copy_debug_image(stage["output"], debug_dir, stage["debug_name"])
+        # Handle different types of output files for debug
+        if stage["debug_name"] in ["05_centroids", "06_json_conversion"]:
+            # For JSON files, copy directly
+            if stage["output"].endswith(".json"):
+                debug_file = os.path.join(debug_dir, f"{stage['debug_name']}.json")
+                shutil.copy2(stage["output"], debug_file)
+                print(f"  Debug JSON saved to {debug_file}")
+            
+            # For centroid visualization
+            if stage["debug_name"] == "05_centroids" and os.path.exists(centroid_vis):
+                copy_debug_image(centroid_vis, debug_dir, "05_centroids_visualization")
         else:
-            # For JSON, copy the file directly
-            debug_file = os.path.join(debug_dir, f"{stage['debug_name']}.json")
-            shutil.copy2(stage["output"], debug_file)
-            print(f"  Debug JSON saved to {debug_file}")
+            # For image files
+            copy_debug_image(stage["output"], debug_dir, stage["debug_name"])
     
     # Copy provinces.json to debug directory
     debug_provinces_json = os.path.join(debug_dir, "provinces.json")
@@ -150,9 +166,11 @@ def main():
             os.remove(temp_file)
     
     print("\nPipeline completed successfully!")
-    print(f"Final output saved to: {stage4_output}")
-    print(f"Province data saved to: {provinces_json}")
-    print(f"Debug images saved to: {debug_dir}")
+    print(f"Final colored map saved to: {stage4_output}")
+    print(f"Province centroids saved to: {centroids_json}")
+    print(f"Province data with centroids saved to: {provinces_json}")
+    print(f"Centroid visualization saved to: {centroid_vis}")
+    print(f"Debug images and files saved to: {debug_dir}")
     
     # Display summary of the processing stages
     try:
@@ -160,7 +178,8 @@ def main():
             f.write("Map Processing Pipeline Summary\n")
             f.write("==============================\n")
             f.write(f"Original input: {input_file}\n")
-            f.write(f"Final output: {stage4_output}\n")
+            f.write(f"Final colored map: {stage4_output}\n")
+            f.write(f"Province centroids: {centroids_json}\n")
             f.write(f"Province data: {provinces_json}\n")
             f.write(f"Processing time: {datetime.datetime.now().strftime('%Y-%m-%d %H:%M:%S')}\n\n")
             

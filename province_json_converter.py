@@ -1,114 +1,102 @@
-#!/usr/bin/env python3
-"""
-Province JSON Converter
-
-This script converts the JSON color file produced by color_provinces.py 
-into a structured province data format required by the game engine.
-
-Usage:
-    python province_json_converter.py input_colors.json output_provinces.json
-"""
-
 import json
 import os
-import sys
 import argparse
+import sys
 
-def convert_color_to_hex(bgr_color):
+def rgb_to_hex(color):
     """
-    Convert BGR color (OpenCV format) to hex string (RGB format)
+    Convert RGB color (BGR in OpenCV format) to hex format without the # prefix.
     
     Args:
-        bgr_color (list): Color in BGR format [B, G, R]
+        color (list): [B, G, R] color values from 0-255
         
     Returns:
-        str: Hex color string in RGB format
+        str: Hex color string
     """
-    # BGR to RGB
-    rgb_color = [bgr_color[2], bgr_color[1], bgr_color[0]]
-    # Convert to hex
-    hex_color = ''.join([f'{c:02X}' for c in rgb_color])
-    return hex_color
+    # OpenCV uses BGR order, so we need to reverse to RGB for hex conversion
+    r, g, b = color[2], color[1], color[0]
+    return f"{r:02X}{g:02X}{b:02X}"
 
-def create_province_data(colors):
+def convert_to_provinces_json(colors_json_path, centroids_json_path, output_path):
     """
-    Create province data in the required format
+    Convert color information and centroid data to a provinces JSON format.
     
     Args:
-        colors (list): List of colors in BGR format
-        
-    Returns:
-        dict: Province data in the required format
+        colors_json_path (str): Path to the JSON file with province colors
+        centroids_json_path (str): Path to the JSON file with province centroids
+        output_path (str): Path to save the output provinces JSON
     """
-    province_data = {
-        "provinces": []
-    }
+    print(f"Loading color data from {colors_json_path}...")
+    with open(colors_json_path, 'r') as f:
+        colors = json.load(f)
     
-    for i, bgr_color in enumerate(colors):
-        province_name = f"P{i+1}"
-        hex_color = convert_color_to_hex(bgr_color)
+    print(f"Loading centroid data from {centroids_json_path}...")
+    with open(centroids_json_path, 'r') as f:
+        centroids = json.load(f)
+    
+    # Create provinces list
+    provinces = []
+    
+    for i, color in enumerate(colors, 1):
+        # Convert color from list to tuple string for lookup in centroids
+        color_tuple_str = str(tuple(color))
         
+        # Get centroid for this province, default to [0, 0, 0] if not found
+        center_point = centroids.get(color_tuple_str, [0, 0, 0])
+        
+        # Create province entry in the required format
         province = {
-            "provinceName": province_name,
+            "provinceName": f"P{i}",
             "owner": "DemoCountry",
             "center": {
-                "x": 0,
-                "y": 0,
-                "z": 0
+                "x": center_point[0],
+                "y": center_point[1],
+                "z": center_point[2]
             },
             "baseTax": 0,
             "baseProduction": 0,
             "baseManpower": 0,
-            "color": hex_color,
+            "color": rgb_to_hex(color),
             "adjacencies": []
         }
         
-        province_data["provinces"].append(province)
+        provinces.append(province)
     
-    return province_data
-
-def convert_provinces_json(input_json_path, output_json_path):
-    """
-    Convert the color JSON file to the province data format
+    # Save provinces to JSON
+    print(f"Creating provinces JSON with {len(provinces)} provinces...")
+    with open(output_path, 'w') as f:
+        json.dump(provinces, f, indent=4)
     
-    Args:
-        input_json_path (str): Path to the input color JSON file
-        output_json_path (str): Path to save the output province JSON file
-    """
-    try:
-        # Read the input JSON file
-        with open(input_json_path, 'r') as f:
-            colors = json.load(f)
-        
-        # Create the province data
-        province_data = create_province_data(colors)
-        
-        # Save the province data
-        os.makedirs(os.path.dirname(output_json_path), exist_ok=True)
-        with open(output_json_path, 'w') as f:
-            json.dump(province_data, f, indent=4)
-        
-        print(f"Converted {len(colors)} colors to province data")
-        print(f"Province data saved to: {output_json_path}")
-        
-        return True
-    except Exception as e:
-        print(f"Error converting province data: {e}")
-        return False
+    print(f"Provinces JSON saved to {output_path}")
+    return provinces
 
 def main():
     # Set up command line argument parser
-    parser = argparse.ArgumentParser(description='Convert color JSON to province data JSON')
-    parser.add_argument('input', help='Path to the input color JSON file')
-    parser.add_argument('output', help='Path to save the output province JSON file')
+    parser = argparse.ArgumentParser(description='Convert colors and centroids to provinces JSON')
+    parser.add_argument('colors_json', help='Path to the JSON file with province colors')
+    parser.add_argument('output_path', help='Path to save the output provinces JSON')
+    parser.add_argument('--centroids', help='Path to the JSON file with province centroids')
     
     args = parser.parse_args()
     
-    # Convert the JSON file
-    success = convert_provinces_json(args.input, args.output)
+    # If centroids path is not provided, try to infer it
+    centroids_path = args.centroids
+    if not centroids_path:
+        base_dir = os.path.dirname(args.colors_json)
+        base_name = os.path.splitext(os.path.basename(args.colors_json))[0]
+        centroids_path = os.path.join(base_dir, f"{base_name}_centroids.json")
+        if not os.path.exists(centroids_path):
+            print(f"Error: Centroids JSON file not found at {centroids_path}")
+            print("Please provide the path to the centroids JSON file using --centroids option")
+            sys.exit(1)
     
-    if not success:
-        sys.exit(1)
+    # Quick test for RGB to Hex conversion
+    test_color = [220, 47, 128]  # [B, G, R] -> should be 802FDC
+    test_hex = rgb_to_hex(test_color)
+    print(f"Color conversion test: RGB(BGR) {test_color} -> HEX {test_hex}")
+    
+    # Convert to provinces JSON
+    convert_to_provinces_json(args.colors_json, centroids_path, args.output_path)
 
 if __name__ == "__main__":
     main()
