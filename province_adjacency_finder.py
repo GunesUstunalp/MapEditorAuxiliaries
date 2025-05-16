@@ -6,11 +6,7 @@ This script analyzes a map image where provinces are represented by unique color
 and finds which provinces are adjacent to each other. The result is saved as a JSON file
 containing the adjacency information for each province.
 
-This enhanced version includes:
-- Improved JSON format with proper RGB object representation
-- Better progress reporting
-- Support for visualization of adjacencies
-- Noise filtering and border detection
+This version uses a simplified JSON format with only hex colors and adjacency lists.
 
 Usage:
     python province_adjacency_finder_enhanced.py <input_map.jpg> <output_adjacency.json>
@@ -66,12 +62,8 @@ def find_province_adjacencies(input_path, output_path, min_shared_pixels=5):
             color = tuple(map(int, img[y, x]))
             if color not in colors:
                 colors[color] = {
-                    "bgr": color,
-                    "hex": rgb_to_hex(color),
-                    "rgb": (color[2], color[1], color[0]),
-                    "pixels": 0
+                    "hex": rgb_to_hex(color)
                 }
-            colors[color]["pixels"] += 1
     
     print(f"Found {len(colors)} unique colors (provinces)")
     
@@ -122,30 +114,14 @@ def find_province_adjacencies(input_path, output_path, min_shared_pixels=5):
         color_hex = color_info["hex"]
         
         # Get all adjacent colors with enough shared pixels
-        adjacent_colors = []
+        adjacent_hexes = []
         for adj_color, count in adjacency_counts[color].items():
             if count >= min_shared_pixels:
-                # Add the adjacent color with its information
-                adjacent_colors.append({
-                    "bgr": list(adj_color),
-                    "rgb": [adj_color[2], adj_color[1], adj_color[0]],
-                    "hex": rgb_to_hex(adj_color),
-                    "shared_pixels": count
-                })
+                # Add only the hex color
+                adjacent_hexes.append(rgb_to_hex(adj_color))
         
-        # Sort adjacent colors by number of shared pixels (descending)
-        adjacent_colors.sort(key=lambda x: x["shared_pixels"], reverse=True)
-        
-        # Create complete province info
-        adjacency_dict[color_hex] = {
-            "color": {
-                "bgr": list(color),
-                "rgb": color_info["rgb"],
-                "hex": color_hex
-            },
-            "pixel_count": color_info["pixels"],
-            "adjacent_provinces": adjacent_colors
-        }
+        # Create simplified province info
+        adjacency_dict[color_hex] = adjacent_hexes
     
     # Create directory if it doesn't exist
     os.makedirs(os.path.dirname(os.path.abspath(output_path)), exist_ok=True)
@@ -182,10 +158,22 @@ def create_adjacency_visualization(input_path, adjacency_dict, output_path):
     # Create a black border image
     border_img = np.zeros_like(img)
     
+    # Build a mapping from hex colors to BGR values
+    hex_to_bgr = {}
+    for y in range(img.shape[0]):
+        for x in range(img.shape[1]):
+            bgr = tuple(map(int, img[y, x]))
+            hex_color = rgb_to_hex(bgr)
+            if hex_color not in hex_to_bgr:
+                hex_to_bgr[hex_color] = bgr
+    
     # For each color and its adjacencies
-    for _, province_info in adjacency_dict.items():
-        # Get color BGR values
-        bgr = province_info["color"]["bgr"]
+    for hex_color in adjacency_dict.keys():
+        # Skip if we don't have the BGR value (shouldn't happen)
+        if hex_color not in hex_to_bgr:
+            continue
+            
+        bgr = hex_to_bgr[hex_color]
         
         # Create a mask for this color
         mask = np.all(img == bgr, axis=2)
