@@ -1,15 +1,16 @@
 #!/usr/bin/env python3
 """
-Province Adjacency Finder (Enhanced)
+Province Adjacency Finder
 
 This script analyzes a map image where provinces are represented by unique colors
 and finds which provinces are adjacent to each other. The result is saved as a JSON file
 containing the adjacency information for each province.
 
-This version uses a simplified JSON format with only hex colors and adjacency lists.
+The output is a simple JSON structure where each key is a hex color and the value
+is an array of hex colors representing adjacent provinces.
 
 Usage:
-    python province_adjacency_finder_enhanced.py <input_map.jpg> <output_adjacency.json>
+    python province_adjacency_finder.py <input_map.jpg> <output_adjacency.json>
 
 The input map should have provinces colored with unique colors and no boundaries.
 """
@@ -21,7 +22,6 @@ import os
 import argparse
 import time
 from collections import defaultdict
-import colorsys
 
 
 def rgb_to_hex(color):
@@ -136,67 +136,7 @@ def find_province_adjacencies(input_path, output_path, min_shared_pixels=5):
     return adjacency_dict
 
 
-def create_adjacency_visualization(input_path, adjacency_dict, output_path):
-    """
-    Create a visualization of the province adjacencies by highlighting borders.
-    
-    Args:
-        input_path (str): Path to the original map image
-        adjacency_dict (dict): Adjacency information for each province
-        output_path (str): Path for the output visualization image
-    """
-    print("Creating adjacency visualization...")
-    
-    # Load the original map
-    img = cv2.imread(input_path)
-    if img is None:
-        raise ValueError(f"Could not read image from {input_path}")
-    
-    # Create a copy for visualization
-    vis_img = img.copy()
-    
-    # Create a black border image
-    border_img = np.zeros_like(img)
-    
-    # Build a mapping from hex colors to BGR values
-    hex_to_bgr = {}
-    for y in range(img.shape[0]):
-        for x in range(img.shape[1]):
-            bgr = tuple(map(int, img[y, x]))
-            hex_color = rgb_to_hex(bgr)
-            if hex_color not in hex_to_bgr:
-                hex_to_bgr[hex_color] = bgr
-    
-    # For each color and its adjacencies
-    for hex_color in adjacency_dict.keys():
-        # Skip if we don't have the BGR value (shouldn't happen)
-        if hex_color not in hex_to_bgr:
-            continue
-            
-        bgr = hex_to_bgr[hex_color]
-        
-        # Create a mask for this color
-        mask = np.all(img == bgr, axis=2)
-        
-        # Find the border pixels by eroding the mask and finding the difference
-        kernel = np.ones((3, 3), np.uint8)
-        eroded = cv2.erode(mask.astype(np.uint8), kernel, iterations=1)
-        border = mask.astype(np.uint8) - eroded
-        
-        # Set border pixels to white in the border image
-        border_img[border == 1] = [255, 255, 255]
-    
-    # Overlay the border on the original image
-    alpha = 0.7  # Original image weight
-    beta = 0.3   # Border weight
-    gamma = 0    # Scalar added to each sum
-    
-    # Apply weighted addition
-    vis_img = cv2.addWeighted(vis_img, alpha, border_img, beta, gamma)
-    
-    # Save the visualization
-    cv2.imwrite(output_path, vis_img)
-    print(f"Visualization saved to {output_path}")
+
 
 
 def main():
@@ -206,10 +146,6 @@ def main():
     parser.add_argument('output', help='Path for the output JSON file')
     parser.add_argument('--min-shared-pixels', type=int, default=5,
                        help='Minimum shared boundary pixels to consider provinces adjacent (default: 5)')
-    parser.add_argument('--create-visualization', action='store_true',
-                       help='Create a visualization of the province adjacencies')
-    parser.add_argument('--visualization-output', type=str, default=None,
-                       help='Path for the visualization output (default: <output_basename>_visualization.png)')
     
     args = parser.parse_args()
     
@@ -221,18 +157,9 @@ def main():
             min_shared_pixels=args.min_shared_pixels
         )
         
-        # Create visualization if requested
-        if args.create_visualization:
-            # Determine visualization output path
-            vis_output = args.visualization_output
-            if vis_output is None:
-                base_name = os.path.splitext(args.output)[0]
-                vis_output = f"{base_name}_visualization.png"
-            
-            create_adjacency_visualization(args.input, adjacency_dict, vis_output)
-        
         print("\nProvince adjacency analysis completed successfully!")
         print(f"Found {len(adjacency_dict)} provinces with their adjacencies.")
+        print(f"Results saved to {args.output}")
         
     except Exception as e:
         print(f"Error: {e}")
