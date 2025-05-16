@@ -171,8 +171,6 @@ def main():
             # For visualizations
             if stage["debug_name"] == "06_centroids" and os.path.exists(centroid_vis):
                 copy_debug_image(centroid_vis, debug_dir, "06_centroids_visualization")
-            elif stage["debug_name"] == "07_adjacencies" and os.path.exists(adjacency_vis):
-                copy_debug_image(adjacency_vis, debug_dir, "07_adjacencies_visualization")
         else:
             # For image files
             copy_debug_image(stage["output"], debug_dir, stage["debug_name"])
