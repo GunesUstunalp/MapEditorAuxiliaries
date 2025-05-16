@@ -3,16 +3,14 @@
 Province Adjacency Finder
 
 This script analyzes a map image where provinces are represented by unique colors
-and finds which provinces are adjacent to each other. The result is saved as a JSON file
-containing the adjacency information for each province.
-
-The output is a simple JSON structure where each key is a hex color and the value
-is an array of hex colors representing adjacent provinces.
+and finds which provinces are adjacent to each other. It also calculates distances
+between province centroids provided in a separate JSON file.
 
 Usage:
-    python province_adjacency_finder.py <input_map.jpg> <output_adjacency.json>
+    python province_adjacency_finder.py <input_map.jpg> <output_adjacency.json> --centroids <centroids.json>
 
 The input map should have provinces colored with unique colors and no boundaries.
+The centroids JSON file should contain the centroid coordinates for each province color.
 """
 
 import cv2
@@ -29,9 +27,9 @@ def rgb_to_hex(color):
     return f"#{color[2]:02x}{color[1]:02x}{color[0]:02x}"
 
 
-def find_province_adjacencies(input_path, output_path, min_shared_pixels=5):
+def find_province_adjacencies(input_path, output_path, min_shared_pixels=1):
     """
-    Find all adjacent provinces in a colored map.
+    Find all adjacent provinces in a colored map and calculate distances between centroids.
     
     Args:
         input_path (str): Path to the map image
@@ -54,9 +52,11 @@ def find_province_adjacencies(input_path, output_path, min_shared_pixels=5):
     height, width, _ = img.shape
     print(f"Map dimensions: {width}x{height}")
     
-    # Identify all unique colors (provinces)
+    # Identify all unique colors (provinces) and collect pixel positions for centroid calculation
     print("Identifying unique provinces...")
     colors = {}
+    province_pixels = defaultdict(list)
+    
     for y in range(height):
         for x in range(width):
             color = tuple(map(int, img[y, x]))
@@ -64,8 +64,20 @@ def find_province_adjacencies(input_path, output_path, min_shared_pixels=5):
                 colors[color] = {
                     "hex": rgb_to_hex(color)
                 }
+            # Store pixel position for centroid calculation
+            province_pixels[color].append((x, y))
     
     print(f"Found {len(colors)} unique colors (provinces)")
+    
+    # Calculate centroids for each province
+    province_centroids = {}
+    for color, pixels in province_pixels.items():
+        if pixels:
+            # Calculate average x and y coordinates
+            x_sum = sum(p[0] for p in pixels)
+            y_sum = sum(p[1] for p in pixels)
+            centroid = (x_sum / len(pixels), y_sum / len(pixels))
+            province_centroids[color] = centroid
     
     # Initialize adjacency count dictionary
     # This will track how many pixels of each color are adjacent to each other color
@@ -105,7 +117,7 @@ def find_province_adjacencies(input_path, output_path, min_shared_pixels=5):
                     # Increment the adjacency count
                     adjacency_counts[color][neighbor_color] += 1
     
-    print("\nProcessing adjacency data...")
+    print("\nProcessing adjacency data and calculating distances...")
     
     # Create final adjacency structure with improved format
     adjacency_dict = {}
@@ -114,14 +126,38 @@ def find_province_adjacencies(input_path, output_path, min_shared_pixels=5):
         color_hex = color_info["hex"]
         
         # Get all adjacent colors with enough shared pixels
-        adjacent_hexes = []
+        adjacent_info = {}
         for adj_color, count in adjacency_counts[color].items():
-            if count >= min_shared_pixels:
-                # Add only the hex color
-                adjacent_hexes.append(rgb_to_hex(adj_color))
+            if count >= 1:
+                # Add the hex color with distance information
+                adj_color_hex = rgb_to_hex(adj_color)
+                
+                # Calculate Euclidean distance between centroids
+                distance = 0
+                if color in province_centroids and adj_color in province_centroids:
+                    c1 = province_centroids[color]
+                    c2 = province_centroids[adj_color]
+                    distance = np.sqrt((c1[0] - c2[0])**2 + (c1[1] - c2[1])**2)
+                
+                adjacent_info[adj_color_hex] = {
+                    "shared_pixels": count,
+                    "centroid_distance": distance
+                }
         
         # Create simplified province info
-        adjacency_dict[color_hex] = adjacent_hexes
+        adjacency_dict[color_hex] = adjacent_info
+    
+    # Create directory if it doesn't exist
+    os.makedirs(os.path.dirname(os.path.abspath(output_path)), exist_ok=True)
+    
+    # Save to JSON file
+    with open(output_path, 'w') as f:
+        json.dump(adjacency_dict, f, indent=2)
+    
+    print(f"Adjacency information saved to {output_path}")
+    print(f"Total execution time: {time.time() - start_time:.2f} seconds")
+    
+    return adjacency_dict
     
     # Create directory if it doesn't exist
     os.makedirs(os.path.dirname(os.path.abspath(output_path)), exist_ok=True)
@@ -144,8 +180,7 @@ def main():
     parser = argparse.ArgumentParser(description='Find province adjacencies in a colored map')
     parser.add_argument('input', help='Path to the map image')
     parser.add_argument('output', help='Path for the output JSON file')
-    parser.add_argument('--min-shared-pixels', type=int, default=5,
-                       help='Minimum shared boundary pixels to consider provinces adjacent (default: 5)')
+    parser.add_argument('--centroids', required=True, help='Path to the JSON file containing province centroids')
     
     args = parser.parse_args()
     
@@ -154,7 +189,7 @@ def main():
         adjacency_dict = find_province_adjacencies(
             args.input, 
             args.output,
-            min_shared_pixels=args.min_shared_pixels
+            args.centroids
         )
         
         print("\nProvince adjacency analysis completed successfully!")
