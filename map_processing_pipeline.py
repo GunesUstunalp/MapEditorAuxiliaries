@@ -9,7 +9,8 @@ This script orchestrates the execution of multiple map processing scripts in seq
 4. color_provinces.py - Colors the provinces/regions
 5. boundary_remover.py - Removes the boundaries and assigns each pixel to a province
 6. province_centroid_finder.py - Finds the center point of each province
-7. province_json_converter.py - Converts color data and centroid data to province data format
+7. province_adjacency_finder.py - Finds which provinces are adjacent to each other
+8. province_json_converter.py - Converts color data and centroid data to province data format
 
 Intermediate images are saved for debugging purposes.
 """
@@ -81,8 +82,10 @@ def main():
     colors_json = os.path.join(output_dir, "temp_colored_map_colors.json")
     stage5_output = os.path.join(output_dir, "final_map_no_boundaries.png")
     centroids_json = os.path.join(output_dir, "province_centroids.json")
+    adjacencies_json = os.path.join(output_dir, "province_adjacencies.json")
     provinces_json = os.path.join(output_dir, "provinces.json")
     centroid_vis = os.path.join(output_dir, "province_centroids_visualization.png")
+    adjacency_vis = os.path.join(output_dir, "province_adjacencies_visualization.png")
     
     # Pipeline stages
     stages = [
@@ -129,10 +132,17 @@ def main():
             "args": ["--colors-json", colors_json, "--visualize", "--display-width", "8000", "--display-height", "4000"]
         },
         {
+            "script": "province_adjacency_finder.py",
+            "input": stage5_output,
+            "output": adjacencies_json,
+            "debug_name": "07_adjacencies",
+            "args": ["--centroids", centroids_json]
+        },
+        {
             "script": "province_json_converter.py",
             "input": colors_json,
             "output": provinces_json,
-            "debug_name": "07_json_conversion",
+            "debug_name": "08_json_conversion",
             "args": ["--centroids", centroids_json]
         }
     ]
@@ -151,16 +161,18 @@ def main():
             sys.exit(1)
         
         # Handle different types of output files for debug
-        if stage["debug_name"] in ["06_centroids", "07_json_conversion"]:
+        if stage["debug_name"] in ["06_centroids", "07_adjacencies", "08_json_conversion"]:
             # For JSON files, copy directly
             if stage["output"].endswith(".json"):
                 debug_file = os.path.join(debug_dir, f"{stage['debug_name']}.json")
                 shutil.copy2(stage["output"], debug_file)
                 print(f"  Debug JSON saved to {debug_file}")
             
-            # For centroid visualization
+            # For visualizations
             if stage["debug_name"] == "06_centroids" and os.path.exists(centroid_vis):
                 copy_debug_image(centroid_vis, debug_dir, "06_centroids_visualization")
+            elif stage["debug_name"] == "07_adjacencies" and os.path.exists(adjacency_vis):
+                copy_debug_image(adjacency_vis, debug_dir, "07_adjacencies_visualization")
         else:
             # For image files
             copy_debug_image(stage["output"], debug_dir, stage["debug_name"])
@@ -177,8 +189,10 @@ def main():
     print("\nPipeline completed successfully!")
     print(f"Final map (no boundaries) saved to: {stage5_output}")
     print(f"Province centroids saved to: {centroids_json}")
+    print(f"Province adjacencies saved to: {adjacencies_json}")
     print(f"Province data with centroids saved to: {provinces_json}")
     print(f"Centroid visualization saved to: {centroid_vis}")
+    print(f"Adjacency visualization saved to: {adjacency_vis}")
     print(f"Debug images and files saved to: {debug_dir}")
     
     # Display summary of the processing stages
@@ -189,6 +203,7 @@ def main():
             f.write(f"Original input: {input_file}\n")
             f.write(f"Final map (no boundaries): {stage5_output}\n")
             f.write(f"Province centroids: {centroids_json}\n")
+            f.write(f"Province adjacencies: {adjacencies_json}\n")
             f.write(f"Province data: {provinces_json}\n")
             f.write(f"Processing time: {datetime.datetime.now().strftime('%Y-%m-%d %H:%M:%S')}\n\n")
             
