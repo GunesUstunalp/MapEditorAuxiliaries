@@ -10,7 +10,7 @@ This script orchestrates the execution of multiple map processing scripts in seq
 5. boundary_remover.py - Removes the boundaries and assigns each pixel to a province
 6. province_centroid_finder.py - Finds the center point of each province
 7. province_adjacency_finder.py - Finds which provinces are adjacent to each other
-8. province_json_converter.py - Converts color data and centroid data to province data format
+8. province_json_converter.py - Converts color data, centroid data, and adjacency data to province data format
 
 Intermediate images are saved for debugging purposes.
 """
@@ -143,7 +143,7 @@ def main():
             "input": colors_json,
             "output": provinces_json,
             "debug_name": "08_json_conversion",
-            "args": ["--centroids", centroids_json]
+            "args": ["--centroids", centroids_json, "--adjacencies", adjacencies_json]
         }
     ]
     
