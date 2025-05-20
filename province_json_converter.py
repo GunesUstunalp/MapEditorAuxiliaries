@@ -164,8 +164,9 @@ def convert_to_provinces_json(colors_json_path, centroids_json_path, adjacencies
             # Get the adjacent province name
             adj_province_name = f"P{adj_province_id}"
             
-            # Add adjacency with distance
-            distance = round(adj_data["centroid_distance"], 1)
+            # Add adjacency with distance as integer (converting from float to int)
+            # This is the key change to fix the issue
+            distance = int(round(adj_data["centroid_distance"]))
             province["adjacencies"].append({
                 "provinceName": adj_province_name,
                 "distance": distance
