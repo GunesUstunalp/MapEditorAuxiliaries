@@ -91,13 +91,14 @@ def convert_to_provinces_json(colors_json_path, centroids_json_path, adjacencies
             print(f"  Warning: No centroid found for color {color_tuple_str}")
         
         # Create province entry in the required format (adjacencies will be added later)
+        # Convert center point coordinates to integers
         province = {
             "provinceName": province_name,
             "owner": "DemoCountry",
             "center": {
-                "x": center_point[0],
-                "y": center_point[2],
-                "z": center_point[1]
+                "x": int(round(center_point[0])),
+                "y": int(round(center_point[2])),
+                "z": int(round(center_point[1]))
             },
             "baseTax": 0,
             "baseProduction": 0,
