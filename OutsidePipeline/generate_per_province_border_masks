@@ -1,0 +1,47 @@
+from PIL import Image
+import numpy as np
+from tqdm import tqdm
+
+def rgb_to_hex(rgb):
+    return ''.join(f"{c:02x}" for c in rgb)
+
+def generate_per_province_border_masks(input_path, output_folder):
+    base = Image.open(input_path).convert('RGB')
+    arr = np.array(base)
+    h, w, _ = arr.shape
+
+    # Find all unique province colors
+    colors = set(tuple(c) for row in arr for c in row)
+
+    # 8 directions: N, NE, E, SE, S, SW, W, NW
+    directions = [(-1,0), (-1,1), (0,1), (1,1),
+                  (1,0), (1,-1), (0,-1), (-1,-1)]
+
+    for province_color in tqdm(colors, desc="Provinces"):
+        mask = np.zeros((h, w), dtype=np.uint8)
+        for y in range(h):
+            for x in range(w):
+                if tuple(arr[y, x]) != province_color:
+                    continue
+                is_border = False
+                for dy, dx in directions:
+                    ny, nx = y + dy, x + dx
+                    if 0 <= ny < h and 0 <= nx < w:
+                        neighbor_color = tuple(arr[ny, nx])
+                        if neighbor_color != province_color:
+                            is_border = True
+                            break
+                if is_border:
+                    mask[y, x] = 255  # White for border
+
+        hexcode = rgb_to_hex(province_color)
+        out_img = Image.fromarray(mask)
+        out_img.save(f"{output_folder}/province_{hexcode}_border_mask.png")
+
+    print(f"Saved individual province border masks to {output_folder}")
+
+if __name__ == '__main__':
+    input_file = "/Users/gunesustunalp/Projects/FantasyGrandStrategyGame/Assets/Art/Map/EmpireOfMan/final_map_no_boundaries.png"
+    output_folder = "/Users/gunesustunalp/Projects/FantasyGrandStrategyGame/Assets/Art/Map/EmpireOfMan/province_border_masks"
+    import os; os.makedirs(output_folder, exist_ok=True)
+    generate_per_province_border_masks(input_file, output_folder)
